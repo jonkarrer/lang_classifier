@@ -1,8 +1,6 @@
 use burn::data::dataset::{Dataset, InMemDataset};
-use burn::{data::dataloader::batcher::Batcher, nn::attention::generate_padding_mask, prelude::*};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokenizers::Tokenizer;
+
 /*
 *
 * Dataset
@@ -10,24 +8,7 @@ use tokenizers::Tokenizer;
 * This is a dataset for text classification.
 */
 
-// Define a struct for text classification items
-#[derive(Clone, Debug)]
-pub struct TextClassificationItem {
-    pub text: String, // The text for classification
-    pub label: f32,   // The label of the text (classification category)
-}
-
-impl TextClassificationItem {
-    pub fn new(text: String, label: f32) -> Self {
-        Self { text, label }
-    }
-}
-
 // Trait for text classification datasets
-pub trait TextClassificationDataset: Dataset<TextClassificationItem> {
-    fn num_classes() -> usize; // Returns the number of unique classes in the dataset
-    fn class_name(label: f32) -> String; // Returns the name of the class given its label
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PatentRecord {
@@ -53,13 +34,18 @@ pub struct PatentRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TokenizedPatentRecord {
+pub struct ClassifiedPatentEntry {
     pub text: String, // The text for classification
     pub label: f32,   // The label of the text (classification category)
 }
 
+pub trait ClassificationDataset: Dataset<ClassifiedPatentEntry> {
+    fn num_classes() -> usize; // Returns the number of unique classes in the dataset
+    fn class_name(label: f32) -> String; // Returns the name of the class given its label
+}
+
 pub struct PatentDataset {
-    pub dataset: InMemDataset<TokenizedPatentRecord>,
+    pub dataset: InMemDataset<ClassifiedPatentEntry>,
 }
 
 impl PatentDataset {
@@ -80,19 +66,17 @@ impl PatentDataset {
     }
 }
 
-impl Dataset<TextClassificationItem> for PatentDataset {
+impl Dataset<ClassifiedPatentEntry> for PatentDataset {
     fn len(&self) -> usize {
         self.dataset.len()
     }
 
-    fn get(&self, index: usize) -> Option<TextClassificationItem> {
-        self.dataset
-            .get(index)
-            .map(|item| TextClassificationItem::new(item.text, item.label))
+    fn get(&self, index: usize) -> Option<ClassifiedPatentEntry> {
+        self.dataset.get(index)
     }
 }
 
-impl TextClassificationDataset for PatentDataset {
+impl ClassificationDataset for PatentDataset {
     fn num_classes() -> usize {
         5
     }
@@ -175,98 +159,6 @@ impl PatentTokenizer for BertCasedTokenizer {
     // Gets the token used for padding sequences to a consistent length.
     fn pad_token(&self) -> usize {
         self.tokenizer.token_to_id("[PAD]").unwrap() as usize
-    }
-}
-
-/*
-*
-* Batcher
-*
-* Batching the data
-*/
-
-// Struct for batching text classification items
-#[derive(Clone, derive_new::new)]
-pub struct TextClassificationBatcher<B: Backend> {
-    tokenizer: Arc<dyn PatentTokenizer>, // Tokenizer for converting text to token IDs
-    device: B::Device, // Device on which to perform computation (e.g., CPU or CUDA device)
-    max_seq_length: usize, // Maximum sequence length for tokenized text
-}
-
-#[derive(Debug, Clone, derive_new::new)]
-pub struct TextClassificationTrainingBatch<B: Backend> {
-    pub tokens: Tensor<B, 2, Int>,    // Tokenized text
-    pub labels: Tensor<B, 1, Int>,    // Labels of the text
-    pub mask_pad: Tensor<B, 2, Bool>, // Padding mask for the tokenized text
-}
-
-#[derive(Debug, Clone, derive_new::new)]
-pub struct TextClassificationInferenceBatch<B: Backend> {
-    pub tokens: Tensor<B, 2, Int>,    // Tokenized text
-    pub mask_pad: Tensor<B, 2, Bool>, // Padding mask for the tokenized text
-}
-
-/// Implement Batcher trait for TextClassificationBatcher struct for training
-impl<B: Backend> Batcher<TextClassificationItem, TextClassificationTrainingBatch<B>>
-    for TextClassificationBatcher<B>
-{
-    /// Batches a vector of text classification items into a training batch
-    fn batch(&self, items: Vec<TextClassificationItem>) -> TextClassificationTrainingBatch<B> {
-        let mut tokens_list = Vec::with_capacity(items.len());
-        let mut labels_list = Vec::with_capacity(items.len());
-
-        // Tokenize text and create label tensor for each item
-        for item in items {
-            tokens_list.push(self.tokenizer.encode(&item.text));
-            labels_list.push(Tensor::from_data(
-                Data::from([(item.label as i64).elem::<B::IntElem>()]),
-                &self.device,
-            ));
-        }
-
-        // Generate padding mask for tokenized text
-        let mask = generate_padding_mask(
-            self.tokenizer.pad_token(),
-            tokens_list,
-            Some(self.max_seq_length),
-            &self.device,
-        );
-
-        // Create and return training batch
-        TextClassificationTrainingBatch {
-            tokens: mask.tensor,
-            labels: Tensor::cat(labels_list, 0),
-            mask_pad: mask.mask,
-        }
-    }
-}
-
-/// Implement Batcher trait for TextClassificationBatcher struct for inference
-impl<B: Backend> Batcher<String, TextClassificationInferenceBatch<B>>
-    for TextClassificationBatcher<B>
-{
-    /// Batches a vector of strings into an inference batch
-    fn batch(&self, items: Vec<String>) -> TextClassificationInferenceBatch<B> {
-        let mut tokens_list: Vec<Vec<usize>> = Vec::with_capacity(items.len());
-
-        // Tokenize each string
-        for item in items {
-            tokens_list.push(self.tokenizer.encode(&item));
-        }
-
-        // Generate padding mask for tokenized text
-        let mask = generate_padding_mask(
-            self.tokenizer.pad_token(),
-            tokens_list,
-            Some(self.max_seq_length),
-            &B::Device::default(),
-        );
-
-        // Create and return inference batch
-        TextClassificationInferenceBatch {
-            tokens: mask.tensor.to_device(&self.device),
-            mask_pad: mask.mask.to_device(&self.device),
-        }
     }
 }
 
