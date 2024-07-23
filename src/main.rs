@@ -1,4 +1,5 @@
 use burn::data::dataset::{Dataset, InMemDataset};
+use derive_new::new;
 use serde::{Deserialize, Serialize};
 
 /*
@@ -8,52 +9,64 @@ use serde::{Deserialize, Serialize};
 * This is a dataset for text classification.
 */
 
-// Trait for text classification datasets
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PatentRecord {
     // Unique patent ID
-    // #[serde(rename = "ID")]
     pub id: String,
 
     // The first phrase of the patent
-    // #[serde(rename = "ANCHOR")]
     pub anchor: String,
 
     // The second phrase of the patent
-    // #[serde(rename = "TARGET")]
     pub target: String,
 
     // CPC classification which indicates the subject within which the similarity is scored
-    // #[serde(rename = "CONTEXT")]
     pub context: String,
 
     // The similarity score
-    // #[serde(rename = "SCORE")]
     pub score: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ClassifiedPatentEntry {
+#[derive(Serialize, Deserialize, Debug, Clone, new)]
+pub struct TokenizedInput {
     pub text: String, // The text for classification
     pub label: f32,   // The label of the text (classification category)
 }
 
-pub trait ClassificationDataset: Dataset<ClassifiedPatentEntry> {
+pub trait ClassificationDataset: Dataset<TokenizedInput> {
     fn num_classes() -> usize; // Returns the number of unique classes in the dataset
     fn class_name(label: f32) -> String; // Returns the name of the class given its label
 }
 
 pub struct PatentDataset {
-    pub dataset: InMemDataset<ClassifiedPatentEntry>,
+    pub dataset: InMemDataset<TokenizedInput>,
 }
 
 impl PatentDataset {
     pub fn train() -> Result<Self, std::io::Error> {
         let path = std::path::Path::new("dataset/train.csv");
-        let reader = csv::ReaderBuilder::new();
+        let mut reader = csv::ReaderBuilder::new().from_path(path)?;
 
-        let dataset = InMemDataset::from_csv(path, &reader)?;
+        let rows = reader.deserialize();
+        let mut classified_data = Vec::new();
+
+        for r in rows {
+            let record: PatentRecord = r?;
+            let raw_text = format!(
+                "TEXT1: {}; TEXT2: {}; ANC1: {};",
+                record.context, record.target, record.anchor
+            );
+
+            // let tokz = CustomTokenizer::default();
+            // let tokens = tokz.encode(&raw_text, true);
+
+            classified_data.push(TokenizedInput {
+                text: raw_text,
+                label: record.score,
+            })
+        }
+
+        let dataset = InMemDataset::new(classified_data);
         Ok(Self { dataset })
     }
 
@@ -66,12 +79,12 @@ impl PatentDataset {
     }
 }
 
-impl Dataset<ClassifiedPatentEntry> for PatentDataset {
+impl Dataset<TokenizedInput> for PatentDataset {
     fn len(&self) -> usize {
         self.dataset.len()
     }
 
-    fn get(&self, index: usize) -> Option<ClassifiedPatentEntry> {
+    fn get(&self, index: usize) -> Option<TokenizedInput> {
         self.dataset.get(index)
     }
 }
@@ -101,35 +114,31 @@ impl ClassificationDataset for PatentDataset {
 * Tokenizing the text
 */
 
-pub trait PatentTokenizer: Send + Sync {
-    /// Converts a text string into a sequence of tokens.
+pub trait Tokenizer {
+    // Converts a text string into a sequence of tokens.
     fn encode(&self, value: &str) -> Vec<usize>;
 
-    /// Converts a sequence of tokens back into a text string.
+    // Converts a sequence of tokens back into a text string.
     fn decode(&self, tokens: &[usize]) -> String;
 
-    /// Gets the size of the tokenizer's vocabulary.
+    // Gets the size of the tokenizer's vocabulary.
     fn vocab_size(&self) -> usize;
 
-    /// Gets the token used for padding sequences to a consistent length.
+    // Gets the token used for padding sequences to a consistent length.
     fn pad_token(&self) -> usize;
 
-    /// Gets the string representation of the padding token.
+    // Gets the string representation of the padding token.
     /// The default implementation uses `decode` on the padding token.
     fn pad_token_value(&self) -> String {
         self.decode(&[self.pad_token()])
     }
 }
 
-// Struct represents a specific tokenizer, in this case a BERT cased tokenization strategy.
-pub struct BertCasedTokenizer {
-    // The underlying tokenizer from the `tokenizers` library.
+pub struct CustomTokenizer {
     tokenizer: tokenizers::Tokenizer,
 }
 
-// Default implementation for creating a new BertCasedTokenizer.
-// This uses a pretrained BERT cased tokenizer model.
-impl Default for BertCasedTokenizer {
+impl Default for CustomTokenizer {
     fn default() -> Self {
         Self {
             tokenizer: tokenizers::Tokenizer::from_pretrained("bert-base-cased", None).unwrap(),
@@ -138,7 +147,7 @@ impl Default for BertCasedTokenizer {
 }
 
 // Implementation of the Tokenizer trait for BertCasedTokenizer.
-impl PatentTokenizer for BertCasedTokenizer {
+impl Tokenizer for CustomTokenizer {
     // Convert a text string into a sequence of tokens using the BERT cased tokenization strategy.
     fn encode(&self, value: &str) -> Vec<usize> {
         let tokens = self.tokenizer.encode(value, true).unwrap();
@@ -163,6 +172,6 @@ impl PatentTokenizer for BertCasedTokenizer {
 }
 
 fn main() {
-    // let dataset = PatentDataset::new().unwrap();
-    // dbg!(dataset.get(0));
+    let dataset = PatentDataset::train().unwrap().get(0).unwrap();
+    dbg!(dataset);
 }
