@@ -60,10 +60,26 @@ impl ClassifiedDataset {
     }
 
     pub fn test_set() -> Result<Self, std::io::Error> {
-        let path = std::path::Path::new("dataset/test.csv");
-        let reader = csv::ReaderBuilder::new();
+        let path = std::path::Path::new("dataset/validate.csv");
+        let mut reader = csv::ReaderBuilder::new().from_path(path)?;
 
-        let dataset = InMemDataset::from_csv(path, &reader)?;
+        let rows = reader.deserialize();
+        let mut classified_data = Vec::new();
+
+        for r in rows {
+            let record: PatentRecord = r?;
+            let text = format!(
+                "TEXT1: {}; TEXT2: {}; ANC1: {};",
+                record.context, record.target, record.anchor
+            );
+
+            classified_data.push(ClassifiedText {
+                text,
+                label: record.score,
+            })
+        }
+
+        let dataset = InMemDataset::new(classified_data);
         Ok(Self { dataset })
     }
 
