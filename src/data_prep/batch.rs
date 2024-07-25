@@ -17,12 +17,14 @@ pub struct ClassificationBatcher<B: Backend> {
     max_seq_length: usize, // Maximum sequence length for tokenized text
 }
 
+#[derive(Clone, Debug)]
 pub struct TrainingBatch<B: Backend> {
     pub tokens: Tensor<B, 2, Int>,    // Tokenized text
     pub labels: Tensor<B, 1, Int>,    // Labels of the text
     pub mask_pad: Tensor<B, 2, Bool>, // Padding mask for the tokenized text
 }
 
+#[derive(Clone, Debug)]
 pub struct InferenceBatch<B: Backend> {
     pub tokens: Tensor<B, 2, Int>,    // Tokenized text
     pub mask_pad: Tensor<B, 2, Bool>, // Padding mask for the tokenized text
