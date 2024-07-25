@@ -1,4 +1,5 @@
 mod data_prep;
+mod model;
 mod training;
 
 use crate::data_prep::gather::ClassifiedDataset;
