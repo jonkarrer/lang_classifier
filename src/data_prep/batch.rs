@@ -51,9 +51,6 @@ impl<B: Backend> Batcher<ClassifiedText, TrainingBatch<B>> for ClassificationBat
             &self.device,
         );
 
-        dbg!(&mask.tensor);
-        dbg!(&mask.mask);
-
         // Create and return training batch
         TrainingBatch {
             tokens: mask.tensor,

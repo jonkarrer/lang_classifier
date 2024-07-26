@@ -1,0 +1,29 @@
+{
+  "transformer": {
+    "d_model": 256,
+    "d_ff": 1024,
+    "n_heads": 8,
+    "n_layers": 4,
+    "dropout": 0.1,
+    "norm_first": true,
+    "quiet_softmax": true,
+    "initializer": {
+      "KaimingUniform": {
+        "gain": 0.5773502691896258,
+        "fan_out_only": false
+      }
+    }
+  },
+  "optimizer": {
+    "weight_decay": {
+      "penalty": 0.00005
+    },
+    "grad_clipping": null,
+    "beta_1": 0.9,
+    "beta_2": 0.999,
+    "epsilon": 0.00001
+  },
+  "batch_size": 1000,
+  "num_epochs": 5,
+  "max_seq_length": 128
+}

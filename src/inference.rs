@@ -1,8 +1,10 @@
+use anyhow::Ok;
 use burn::{
     data::dataloader::batcher::Batcher,
     prelude::*,
     record::{CompactRecorder, Recorder},
 };
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::{
@@ -10,6 +12,42 @@ use crate::{
     model::ModelBuilder,
     training::ExperimentConfig,
 };
+
+// Represents a single row in the csv dataset
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TestPatentRecord {
+    // Unique patent ID
+    pub id: String,
+
+    // The first phrase of the patent
+    pub anchor: String,
+
+    // The second phrase of the patent
+    pub target: String,
+
+    // CPC classification which indicates the subject within which the similarity is scored
+    pub context: String,
+}
+
+pub fn gather_test_set() -> anyhow::Result<Vec<String>> {
+    let path = std::path::Path::new("dataset/test.csv");
+    let mut reader = csv::ReaderBuilder::new().from_path(path).unwrap();
+
+    let rows = reader.deserialize();
+    let mut test_set = Vec::new();
+
+    for r in rows {
+        let record: TestPatentRecord = r.unwrap();
+        let text = format!(
+            "TEXT1: {}; TEXT2: {}; ANC1: {};",
+            record.context, record.target, record.anchor
+        );
+
+        test_set.push(text);
+    }
+
+    Ok(test_set)
+}
 
 // Define inference function
 pub fn infer<B: Backend>(

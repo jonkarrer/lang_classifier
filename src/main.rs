@@ -12,9 +12,15 @@ use burn::{
     nn::transformer::TransformerEncoderConfig,
     optim::{decay::WeightDecayConfig, AdamConfig},
 };
+use data_prep::PatentRecord;
+use inference::gather_test_set;
 use training::ExperimentConfig;
 
 fn main() {
+    start_inference_experiment();
+}
+
+fn start_training_experiment() {
     type MyBackend = Wgpu<AutoGraphicsApi, f32, i32>;
     type MyAutoDiffBackend = Autodiff<MyBackend>;
 
@@ -35,7 +41,18 @@ fn main() {
         ClassifiedDataset::training_set().unwrap(),
         ClassifiedDataset::test_set().unwrap(),
         config,
-        "/tmp/text-classification-ag-news",
+        "/tmp/text-classification-patent",
     )
     .unwrap();
+}
+
+fn start_inference_experiment() {
+    type MyBackend = Wgpu<AutoGraphicsApi, f32, i32>;
+    type MyAutoDiffBackend = Autodiff<MyBackend>;
+
+    inference::infer::<MyAutoDiffBackend>(
+        WgpuDevice::default(),
+        "/Users/jkarrer/devjon/rust/lang_classifier/text-classification-patent",
+        gather_test_set().unwrap(),
+    );
 }
