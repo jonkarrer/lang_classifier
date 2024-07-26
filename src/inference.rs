@@ -2,13 +2,13 @@ use burn::{
     data::dataloader::batcher::Batcher,
     prelude::*,
     record::{CompactRecorder, Recorder},
-    tensor::ops::IntElem,
 };
 use std::sync::Arc;
 
 use crate::{
-    data_prep::batch::ClassificationBatcher, data_prep::gather::ClassifiedDataset,
-    data_prep::tokenizer::BertCaseTokenizer, model::ModelBuilder, training::ExperimentConfig,
+    data_prep::{BertCaseTokenizer, ClassificationBatcher, ClassifiedDataset},
+    model::ModelBuilder,
+    training::ExperimentConfig,
 };
 
 // Define inference function

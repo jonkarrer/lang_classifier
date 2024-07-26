@@ -11,7 +11,7 @@ use burn::{
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
 
-use crate::data_prep::batch::{InferenceBatch, TrainingBatch};
+use crate::data_prep::{InferenceBatch, TrainingBatch};
 
 #[derive(Config)]
 pub struct ModelBuilder {

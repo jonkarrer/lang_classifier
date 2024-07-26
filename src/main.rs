@@ -3,22 +3,23 @@ mod inference;
 mod model;
 mod training;
 
-use crate::data_prep::gather::ClassifiedDataset;
+use crate::data_prep::ClassifiedDataset;
 use burn::{
-    data::dataset::Dataset,
+    backend::{
+        wgpu::{AutoGraphicsApi, WgpuDevice},
+        Autodiff, Wgpu,
+    },
     nn::transformer::TransformerEncoderConfig,
     optim::{decay::WeightDecayConfig, AdamConfig},
-    tensor::backend::AutodiffBackend,
 };
 use training::ExperimentConfig;
 
-type ElemType = f32;
-
 fn main() {
-    wgpu::run();
-}
+    type MyBackend = Wgpu<AutoGraphicsApi, f32, i32>;
+    type MyAutoDiffBackend = Autodiff<MyBackend>;
 
-pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
+    let devices = vec![WgpuDevice::default()];
+
     let config = ExperimentConfig::new(
         TransformerEncoderConfig::new(256, 1024, 8, 4)
             .with_norm_first(true)
@@ -29,7 +30,7 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
         128,
     );
 
-    training::train::<B>(
+    training::train::<MyAutoDiffBackend>(
         devices,
         ClassifiedDataset::training_set().unwrap(),
         ClassifiedDataset::test_set().unwrap(),
@@ -37,16 +38,4 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
         "/tmp/text-classification-ag-news",
     )
     .unwrap();
-}
-
-mod wgpu {
-    use crate::{launch, ElemType};
-    use burn::backend::{
-        wgpu::{Wgpu, WgpuDevice},
-        Autodiff,
-    };
-
-    pub fn run() {
-        launch::<Autodiff<Wgpu>>(vec![WgpuDevice::default()]);
-    }
 }

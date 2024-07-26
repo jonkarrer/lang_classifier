@@ -14,9 +14,7 @@ use burn::{
 use std::sync::Arc;
 
 use crate::{
-    data_prep::{
-        batch::ClassificationBatcher, gather::ClassifiedDataset, tokenizer::BertCaseTokenizer,
-    },
+    data_prep::{BertCaseTokenizer, ClassificationBatcher, ClassifiedDataset},
     model::{Model, ModelBuilder},
 };
 
@@ -64,7 +62,7 @@ pub fn train<B: AutodiffBackend>(
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
         .num_workers(1)
-        .build(SamplerDataset::new(training_set, 50_000));
+        .build(SamplerDataset::new(training_set, 30_000));
 
     let dataloader_test = DataLoaderBuilder::new(batcher_test)
         .batch_size(config.batch_size)
