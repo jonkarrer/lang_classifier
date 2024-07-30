@@ -36,14 +36,14 @@ fn start_training_experiment() {
         128,
     );
 
-    training::train::<MyAutoDiffBackend>(
-        devices,
-        ClassifiedDataset::training_set().unwrap(),
-        ClassifiedDataset::test_set().unwrap(),
-        config,
-        "/tmp/text-classification-patent",
-    )
-    .unwrap();
+    // training::train::<MyAutoDiffBackend>(
+    //     devices,
+    //     ClassifiedDataset::training_set().unwrap(),
+    //     ClassifiedDataset::test_set().unwrap(),
+    //     config,
+    //     "/tmp/text-classification-patent",
+    // )
+    // .unwrap();
 }
 
 fn start_inference_experiment() {
